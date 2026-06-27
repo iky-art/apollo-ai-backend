@@ -21,9 +21,7 @@ function checkRate(key, limit) {
 }
 
 function cors(res, req) {
-  const origin = req.headers['origin'] || '*';
-  const allowed = process.env.URL_FRONT_END || '*';
-  res.setHeader('Access-Control-Allow-Origin', allowed === '*' ? '*' : origin);
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 }
@@ -112,5 +110,4 @@ export default async function handler(req, res) {
     console.error('[chat]', err);
     return res.status(500).json({ error: 'Gagal menghubungi AI: ' + err.message });
   }
-        }
-      
+}
