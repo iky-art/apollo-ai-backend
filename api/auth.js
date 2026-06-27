@@ -3,8 +3,7 @@
 import { supabase } from '../lib/supabase.js';
 
 function cors(res, req) {
-  const allowed = process.env.URL_FRONT_END || '*';
-  res.setHeader('Access-Control-Allow-Origin', allowed);
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
 }
@@ -96,5 +95,4 @@ export default async function handler(req, res) {
   }
 
   return res.status(400).json({ error: `Action tidak dikenal: ${action}` });
-      }
-      
+}
