@@ -5,10 +5,11 @@ import { supabase, verifyToken, getToken } from '../lib/supabase.js';
 
 // Rate limit in-memory
 const rl = new Map();
-const RL_FREE = parseInt(process.env.RL_FREE || '15');
-const RL_PRO  = parseInt(process.env.RL_PRO  || '60');
-const RL_ANON = parseInt(process.env.RL_ANON || '5');
-const RL_WIN  = 60_000;
+const RL_FREE = parseInt(process.env.RL_FREE || '15');   // per menit
+const RL_PRO  = parseInt(process.env.RL_PRO  || '60');   // per menit
+const RL_ANON = parseInt(process.env.RL_ANON || '20');   // per hari (guest)
+const RL_WIN  = 60_000;          // window untuk free & pro (1 menit)
+const RL_WIN_ANON = 86_400_000; // window untuk guest (24 jam)
 
 // Auto-ban threshold — berapa kali jailbreak HIGH sebelum auto-ban
 const AUTO_BAN_THRESHOLD = parseInt(process.env.AUTO_BAN_THRESHOLD || '3');
@@ -16,10 +17,11 @@ const AUTO_BAN_THRESHOLD = parseInt(process.env.AUTO_BAN_THRESHOLD || '3');
 // Track count jailbreak per user in-memory (reset tiap cold start)
 const jbCount = new Map();
 
-function checkRate(key, limit) {
+function checkRate(key, limit, window) {
   const now = Date.now();
+  const win = window || RL_WIN;
   const e = rl.get(key) || { count: 0, start: now };
-  if (now - e.start > RL_WIN) { rl.set(key, { count: 1, start: now }); return true; }
+  if (now - e.start > win) { rl.set(key, { count: 1, start: now }); return true; }
   if (e.count >= limit) return false;
   e.count++;
   rl.set(key, e);
@@ -66,9 +68,14 @@ export default async function handler(req, res) {
 
   // ── Rate limit ──
   const rlKey = user ? `user:${user.id}` : `ip:${ip}`;
+  const isAnon = userPlan === 'anon';
   const rlMax = userPlan === 'pro' ? RL_PRO : userPlan === 'free' ? RL_FREE : RL_ANON;
-  if (!checkRate(rlKey, rlMax)) {
-    return res.status(429).json({ error: `Terlalu banyak request. Limit: ${rlMax}/menit.` });
+  const rlWin = isAnon ? RL_WIN_ANON : RL_WIN;
+  if (!checkRate(rlKey, rlMax, rlWin)) {
+    const msg = isAnon
+      ? `Batas pesan harian tercapai (${RL_ANON}x/hari). Login atau daftar untuk pesan lebih banyak!`
+      : `Terlalu banyak request. Limit: ${rlMax}/menit.`;
+    return res.status(429).json({ error: msg, limit_type: isAnon ? 'daily' : 'minute' });
   }
 
   // ── Validasi body ──
@@ -176,5 +183,4 @@ export default async function handler(req, res) {
     console.error('[chat]', err.message);
     return res.status(500).json({ error: 'Gagal menghubungi AI: ' + err.message });
   }
-  }
-        
+}
